@@ -3,6 +3,7 @@ import tarfile
 import pygame
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from io import BytesIO
 
 # TODO: echo, mv, uptime
 
@@ -16,7 +17,7 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 
-# Шрифт для отображения текста (можешь поменять)
+# Шрифт для отображения текста
 font = pygame.font.Font(None, FONT_SIZE)
 
 
@@ -37,19 +38,13 @@ def log_action(log_file, action):
         tree.write(f)
 
 
-# Функция для извлечения виртуальной файловой системы
-def extract_vfs(vfs_tar_path, extract_to):
-    with tarfile.open(vfs_tar_path, 'r') as tar:
-        tar.extractall(path=extract_to)
-
-
 # Основной класс эмулятора оболочки
 class ShellEmulator:
-    def __init__(self, screen, computer_name, vfs_path, log_file):
+    def __init__(self, screen, computer_name, vfs_tar, log_file):
         self.screen = screen
         self.computer_name = computer_name
-        self.vfs_root = vfs_path
-        self.current_dir = vfs_path
+        self.tar = vfs_tar
+        self.current_dir = "."  # Стартуем из корневой директории архива
         self.log_file = log_file
         self.command_input = ""
         self.output_lines = []
@@ -72,7 +67,7 @@ class ShellEmulator:
 
         pygame.display.flip()
 
-    # Оброботтчик комманд
+    # Обработка команд
     def process_command(self):
         command = self.command_input
         self.output_lines.append(f"{os.path.basename(self.current_dir)} $ {command}")
@@ -95,11 +90,14 @@ class ShellEmulator:
             else:
                 self.output_lines.append("Usage: cd <directory>")
         elif cmd == "uptime":
-            pass
+            self.uptime_command()
         elif cmd == "mv":
-            pass
+            if len(tokens) > 2:
+                self.mv_command(tokens[1], tokens[2])
+            else:
+                self.output_lines.append("Usage: mv <source> <destination>")
         elif cmd == "echo":
-            pass
+            self.echo_command(" ".join(tokens[1:]))
         elif cmd == "exit":
             pygame.quit()
             exit()
@@ -109,62 +107,61 @@ class ShellEmulator:
     # Реализация команды ls
     def ls_command(self):
         try:
-            dirs = os.listdir(self.current_dir)  # Получаем список содержимого директории
-            for item in dirs:  # Проходим по каждому элементу в директории
-                self.output_lines.append(item)  # Добавляем элемент на новую строку
+            dirs = [ti.name for ti in self.tar.getmembers() if ti.name.startswith(self.current_dir) and ti.name != self.current_dir]
+            for item in dirs:
+                self.output_lines.append(os.path.basename(item))
         except FileNotFoundError:
             self.output_lines.append("Directory not found")
 
     # Реализация команды cd
     def cd_command(self, path):
-        new_path = os.path.join(self.current_dir, path)
-        if os.path.isdir(new_path):
+        new_path = os.path.normpath(os.path.join(self.current_dir, path))
+        if any(ti.name == new_path and ti.isdir() for ti in self.tar.getmembers()):
             self.current_dir = new_path
         else:
             self.output_lines.append(f"No such directory: {path}")
 
+    # Реализация команды uptime
     def uptime_command(self):
         pass
 
-    def mv_command(self):
+    # Реализация команды mv
+    def mv_command(self, source, destination):
         pass
 
-    def echo_command(self):
+    # Реализация команды echo
+    def echo_command(self, text):
         pass
 
 
 # Основная функция для запуска эмулятора
 def run_shell_emulator(computer_name, vfs_tar_path, log_file_path):
-    # Подготовка виртуальной файловой системы
-    vfs_dir = './vfs'
-    extract_vfs(vfs_tar_path, vfs_dir)
+    # Открываем tar-файл для работы
+    with tarfile.open(vfs_tar_path, 'r') as tar:
+        # Создание окна Pygame
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption(f"Shell Emulator - {computer_name}")
 
+        # Инициализация эмулятора
+        emulator = ShellEmulator(screen, computer_name, tar, log_file_path)
 
+        # Главный цикл программы
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        emulator.process_command()
+                    elif event.key == pygame.K_BACKSPACE:
+                        emulator.command_input = emulator.command_input[:-1]
+                    else:
+                        emulator.command_input += event.unicode
 
-    # Создание окна Pygame
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption(f"Shell Emulator - {computer_name}")
+            emulator.render()
 
-    # Инициализация эмулятора
-    emulator = ShellEmulator(screen, computer_name, vfs_dir, log_file_path)
-
-    # Главный цикл программы
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    emulator.process_command()
-                elif event.key == pygame.K_BACKSPACE:
-                    emulator.command_input = emulator.command_input[:-1]
-                else:
-                    emulator.command_input += event.unicode
-
-        emulator.render()
-
-    pygame.quit()
+        pygame.quit()
 
 
 # Пример использования
