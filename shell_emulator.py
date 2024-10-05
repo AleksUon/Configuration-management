@@ -14,7 +14,7 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 
-# Шрифт для отображения текста (можешь поменять)
+# Шрифт
 font = pygame.font.Font(None, FONT_SIZE)
 
 
@@ -50,7 +50,9 @@ class ShellEmulator:
         self.current_dir = vfs_path
         self.log_file = log_file
         self.command_input = ""
-        self.output_lines = []
+        self.output_lines = [
+            "Type 'help' to see a list of available commands."
+        ]  # Сообщение при старте программы
         self.start_time = datetime.now()  # Запоминаем время старта
 
     # Функция отображения текста на экране
