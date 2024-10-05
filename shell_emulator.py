@@ -53,7 +53,6 @@ class ShellEmulator:
         self.output_lines = []
         self.start_time = datetime.now()  # Запоминаем время старта
 
-
     # Функция отображения текста на экране
     def render(self):
         self.screen.fill(BLACK)
@@ -103,6 +102,8 @@ class ShellEmulator:
                 self.output_lines.append("Usage: mv <source> <destination>")
         elif cmd == "echo":
             self.echo_command(' '.join(tokens[1:]))
+        elif cmd == "help":
+            self.help_command()
         elif cmd == "exit":
             pygame.quit()
             exit()
@@ -146,6 +147,20 @@ class ShellEmulator:
     # Реализация команды echo
     def echo_command(self, text):
         self.output_lines.append(text)
+
+    # Реализация команды help
+    def help_command(self):
+        help_text = [
+            "Available commands:",
+            "ls                 - List files and directories",
+            "cd <directory>     - Change the current directory",
+            "uptime             - Show how long the emulator has been running",
+            "mv <src> <dest>    - Move or rename a file",
+            "echo <text>        - Print text to the console",
+            "help               - Show this help message",
+            "exit               - Quit the shell emulator"
+        ]
+        self.output_lines.extend(help_text)
 
 
 # Основная функция для запуска эмулятора
